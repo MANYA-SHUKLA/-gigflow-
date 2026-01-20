@@ -1,0 +1,11 @@
+{
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(auth)/register/page": "app/(auth)/register/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/gigs/[id]/edit/page": "app/gigs/[id]/edit/page.js",
+  "/gigs/[id]/page": "app/gigs/[id]/page.js",
+  "/gigs/page": "app/gigs/page.js",
+  "/my-bids/page": "app/my-bids/page.js",
+  "/my-gigs/page": "app/my-gigs/page.js",
+  "/page": "app/page.js"
+}

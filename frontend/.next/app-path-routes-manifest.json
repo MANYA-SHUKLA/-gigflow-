@@ -1,0 +1,13 @@
+{
+  "/(auth)/login/page": "/login",
+  "/(auth)/register/page": "/register",
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/dashboard/page": "/dashboard",
+  "/gigs/[id]/page": "/gigs/[id]",
+  "/gigs/create/page": "/gigs/create",
+  "/gigs/page": "/gigs",
+  "/my-bids/page": "/my-bids",
+  "/my-gigs/page": "/my-gigs",
+  "/page": "/"
+}

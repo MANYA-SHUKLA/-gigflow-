@@ -1,0 +1,745 @@
+openapi: 3.0.0
+info:
+  title: GigFlow API
+  description: |
+    Full-stack freelance marketplace API where Clients can post jobs (Gigs) and Freelancers can apply for them (Bids).
+    
+    ## Features
+    - Secure authentication with JWT tokens in HttpOnly cookies
+    - Gig management (CRUD operations)
+    - Bidding system
+    - Hiring logic with transactional integrity
+    - Real-time notifications via Socket.io
+    
+    ## Authentication
+    All protected endpoints require a valid JWT token stored in an HttpOnly cookie.
+    The token is automatically set when you register or login.
+  version: 1.0.0
+  contact:
+    name: GigFlow API Support
+    email: support@gigflow.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5001/api
+    description: Development server
+  - url: https://api.gigflow.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Gigs
+    description: Job posting management
+  - name: Bids
+    description: Bidding and hiring management
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account and sets an HttpOnly cookie with JWT token
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  example: Manya Shukla
+                  description: User's full name
+                email:
+                  type: string
+                  format: email
+                  example: shuklamanya99@gmail.com
+                  description: User's email address (must be unique)
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+                  example: password123
+                  description: User's password (minimum 6 characters)
+      responses:
+        '201':
+          description: User successfully registered
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; SameSite=Lax
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Authenticates user and sets an HttpOnly cookie with JWT token
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: shuklamanya99@gmail.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+      responses:
+        '200':
+          description: User successfully logged in
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; SameSite=Lax
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: Clears the authentication cookie
+      operationId: logoutUser
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: User successfully logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logged out successfully
+
+  /auth/check:
+    get:
+      tags:
+        - Authentication
+      summary: Check current user
+      description: Returns the currently authenticated user's information
+      operationId: checkUser
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /gigs:
+    get:
+      tags:
+        - Gigs
+      summary: Get all gigs
+      description: Retrieves a list of gigs with optional search and status filtering
+      operationId: getGigs
+      parameters:
+        - name: search
+          in: query
+          description: Search query to filter gigs by title or description
+          required: false
+          schema:
+            type: string
+            example: web development
+        - name: status
+          in: query
+          description: Filter gigs by status
+          required: false
+          schema:
+            type: string
+            enum: [open, assigned]
+            default: open
+            example: open
+      responses:
+        '200':
+          description: List of gigs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 10
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Gig'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Gigs
+      summary: Create a new gig
+      description: Creates a new job posting (requires authentication)
+      operationId: createGig
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+                - budget
+              properties:
+                title:
+                  type: string
+                  maxLength: 100
+                  example: Build a responsive e-commerce website
+                description:
+                  type: string
+                  maxLength: 1000
+                  example: Looking for an experienced web developer to build a modern e-commerce platform with React and Node.js
+                budget:
+                  type: number
+                  minimum: 1
+                  example: 5000
+      responses:
+        '201':
+          description: Gig created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Gig'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /gigs/{id}:
+    get:
+      tags:
+        - Gigs
+      summary: Get a single gig
+      description: Retrieves detailed information about a specific gig
+      operationId: getGig
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Gig ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses:
+        '200':
+          description: Gig retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Gig'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - Gigs
+      summary: Update a gig
+      description: Updates an existing gig (only the owner can update)
+      operationId: updateGig
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Gig ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 1000
+                budget:
+                  type: number
+                  minimum: 1
+      responses:
+        '200':
+          description: Gig updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Gig'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Gigs
+      summary: Delete a gig
+      description: Deletes a gig (only the owner can delete)
+      operationId: deleteGig
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Gig ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses:
+        '200':
+          description: Gig deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /bids:
+    post:
+      tags:
+        - Bids
+      summary: Submit a bid
+      description: Creates a new bid on a gig (requires authentication, cannot bid on own gig)
+      operationId: createBid
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - gigId
+                - message
+                - price
+              properties:
+                gigId:
+                  type: string
+                  example: 507f1f77bcf86cd799439011
+                  description: ID of the gig to bid on
+                message:
+                  type: string
+                  maxLength: 500
+                  example: I have 5+ years of experience in web development and would love to work on this project.
+                price:
+                  type: number
+                  minimum: 1
+                  example: 4500
+                  description: Bid amount in dollars
+      responses:
+        '201':
+          description: Bid created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Bid'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /bids/{gigId}:
+    get:
+      tags:
+        - Bids
+      summary: Get bids for a gig
+      description: Retrieves all bids for a specific gig (only the gig owner can view)
+      operationId: getBidsByGig
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: gigId
+          in: path
+          required: true
+          description: Gig ID
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses:
+        '200':
+          description: Bids retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Bid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /bids/{bidId}/hire:
+    patch:
+      tags:
+        - Bids
+      summary: Hire a freelancer
+      description: |
+        Hires a freelancer for a gig. This action:
+        - Changes the selected bid status to "hired"
+        - Changes the gig status from "open" to "assigned"
+        - Automatically rejects all other pending bids for that gig
+        - Sends real-time notifications via Socket.io
+        
+        **Important**: Uses MongoDB transactions to prevent race conditions.
+        Only the gig owner can hire freelancers.
+      operationId: hireFreelancer
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: bidId
+          in: path
+          required: true
+          description: Bid ID to hire
+          schema:
+            type: string
+            example: 507f1f77bcf86cd799439011
+      responses:
+        '200':
+          description: Freelancer hired successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Freelancer hired successfully
+                  data:
+                    type: object
+                    properties:
+                      bid:
+                        $ref: '#/components/schemas/Bid'
+                      gig:
+                        $ref: '#/components/schemas/Gig'
+        '400':
+          description: Bad request (gig already assigned, bid not available, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Conflict - Gig has already been assigned to another freelancer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /bids/user/my-bids:
+    get:
+      tags:
+        - Bids
+      summary: Get user's bids
+      description: Retrieves all bids submitted by the authenticated user
+      operationId: getUserBids
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: User bids retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 3
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BidWithGig'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+      description: JWT token stored in HttpOnly cookie
+
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        name:
+          type: string
+          example: Manya Shukla
+        email:
+          type: string
+          format: email
+          example: shuklamanya99@gmail.com
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T10:30:00Z'
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/User'
+
+    Gig:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        title:
+          type: string
+          example: Build a responsive e-commerce website
+        description:
+          type: string
+          example: Looking for an experienced web developer...
+        budget:
+          type: number
+          example: 5000
+        ownerId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/User'
+          example: 507f1f77bcf86cd799439011
+        status:
+          type: string
+          enum: [open, assigned]
+          example: open
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T10:30:00Z'
+
+    Bid:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        gigId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/Gig'
+          example: 507f1f77bcf86cd799439011
+        freelancerId:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/User'
+          example: 507f1f77bcf86cd799439011
+        message:
+          type: string
+          example: I have 5+ years of experience...
+        price:
+          type: number
+          example: 4500
+        status:
+          type: string
+          enum: [pending, hired, rejected]
+          example: pending
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-15T10:30:00Z'
+
+    BidWithGig:
+      allOf:
+        - $ref: '#/components/schemas/Bid'
+        - type: object
+          properties:
+            gigId:
+              $ref: '#/components/schemas/Gig'
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Error message describing what went wrong
+
+  responses:
+    BadRequest:
+      description: Bad request - Invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Validation error message
+
+    Unauthorized:
+      description: Unauthorized - Invalid or missing authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Not authorized to access this route
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Resource not found
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: Internal Server Error

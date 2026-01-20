@@ -1,0 +1,239 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "GigFlow API",
+    "description": "Full-stack freelance marketplace API where Clients can post jobs (Gigs) and Freelancers can apply for them (Bids).",
+    "version": "1.0.0",
+    "contact": {
+      "name": "GigFlow API Support",
+      "email": "support@gigflow.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5001/api",
+      "description": "Development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "User authentication and authorization"
+    },
+    {
+      "name": "Gigs",
+      "description": "Job posting management"
+    },
+    {
+      "name": "Bids",
+      "description": "Bidding and hiring management"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Manya Shukla"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "shuklamanya99@gmail.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 6,
+                    "example": "password123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User successfully registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "_id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "email": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User successfully logged in"
+          }
+        }
+      }
+    },
+    "/gigs": {
+      "get": {
+        "tags": ["Gigs"],
+        "summary": "Get all gigs",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["open", "assigned"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of gigs"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Gigs"],
+        "summary": "Create a new gig",
+        "security": [{"cookieAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "description", "budget"],
+                "properties": {
+                  "title": { "type": "string", "maxLength": 100 },
+                  "description": { "type": "string", "maxLength": 1000 },
+                  "budget": { "type": "number", "minimum": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Gig created successfully"
+          }
+        }
+      }
+    },
+    "/bids": {
+      "post": {
+        "tags": ["Bids"],
+        "summary": "Submit a bid",
+        "security": [{"cookieAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["gigId", "message", "price"],
+                "properties": {
+                  "gigId": { "type": "string" },
+                  "message": { "type": "string", "maxLength": 500 },
+                  "price": { "type": "number", "minimum": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bid created successfully"
+          }
+        }
+      }
+    },
+    "/bids/{bidId}/hire": {
+      "patch": {
+        "tags": ["Bids"],
+        "summary": "Hire a freelancer",
+        "security": [{"cookieAuth": []}],
+        "parameters": [
+          {
+            "name": "bidId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Freelancer hired successfully"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "token"
+      }
+    }
+  }
+}
