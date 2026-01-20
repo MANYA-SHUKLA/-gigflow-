@@ -184,7 +184,7 @@ export default function GigDetailPage() {
       return;
     }
 
-    if (price > gig?.budget) {
+    if (gig?.budget && price > gig.budget) {
       toast.error(`Bid amount cannot exceed the project budget of $${gig.budget.toLocaleString()}`);
       return;
     }
