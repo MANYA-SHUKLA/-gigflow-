@@ -67,11 +67,11 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
         }
       });
 
-      newSocket.on('disconnect', (reason) => {
+      newSocket.on('disconnect', (reason: string) => {
         console.log('⚠️ Socket disconnected:', reason);
       });
 
-      newSocket.on('reconnect', (attemptNumber) => {
+      newSocket.on('reconnect', (attemptNumber: number) => {
         console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
         // Rejoin user room after reconnection
         if (user && isAuthenticated) {
