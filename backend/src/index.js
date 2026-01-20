@@ -80,6 +80,22 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
 }));
 
 // Routes
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'GigFlow API is running',
+    version: '1.0.0',
+    madeWith: '❤️ Made with love by Manya Shukla',
+    endpoints: {
+      auth: '/api/auth',
+      gigs: '/api/gigs',
+      bids: '/api/bids',
+      documentation: '/api-docs'
+    }
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/gigs', gigRoutes);
 app.use('/api/bids', bidRoutes);
